@@ -1,6 +1,12 @@
 # tvshowinfo
 Get TV show info from various sources
 
+## Sources
+
+https://www.episodate.com/
+
+https://www.tvmaze.com/
+
 
 ## Usage
 

@@ -5,14 +5,20 @@ import argparse
 import json
 import re
 import sys
+import urllib3
 
 # from std
+from http import HTTPStatus
 from urllib.parse import quote
 
 # 3rd party
 import requests
 
 # from 3rd party
+
+
+# global changes
+urllib3.disable_warnings()
 
 class GenericShowImage(object):
     '''
@@ -176,6 +182,19 @@ class GenericTVShow(object):
         return getattr(self, "_show_links", None)
 
 
+class EpisodateImage(GenericShowImage):
+    def __init__(self, show_json=None):
+        super(EpisodateImage, self).__init__()
+        self.show_json = show_json if show_json else {}
+        self.parse()
+
+    def parse(self):
+        if not self.show_json:
+            return
+        self._small_image = self.show_json.get('image_thumbnail_path')
+        self._medium_image = self.show_json.get('image_path')
+
+
 class TVMazeImage(GenericShowImage):
     def __init__(self, show_json=None):
         super(TVMazeImage, self).__init__()
@@ -255,6 +274,28 @@ class TVMazeShow(GenericTVShow):
         return
 
 
+class EpisodateShow(GenericTVShow):
+    def __init__(self, show_json=None):
+        super(EpisodateShow, self).__init__()
+        self.show_json = show_json if show_json else {}
+        self.parse()
+
+    def parse(self):
+        if not self.show_json:
+            return
+        tv_show = self.show_json.get('tvShow', {})
+        if not tv_show:
+            return
+        self._show_id = tv_show.get('id')
+        self._show_url = tv_show.get('url')
+        self._show_name = tv_show.get('name')
+        self._show_summary = re.sub('<[^<]+?>', '', tv_show.get('description'))
+        self._show_status = tv_show.get('status')
+        self._show_genres = tv_show.get('genres', [])
+        self._show_runtime = tv_show.get('runtime')
+        self._show_image = EpisodateImage(tv_show)
+
+
 class TVMazeClient(object):
     SEARCH_BASE = "https://api.tvmaze.com/search/shows?q="
 
@@ -264,13 +305,53 @@ class TVMazeClient(object):
     def get_matching_shows(self, show):
         result = []
         r = requests.get(self.SEARCH_BASE + quote(show))
-        if r.status_code == 200:
+        if r.status_code == HTTPStatus.OK:
             for show_json in r.json():
                 result.append(TVMazeShow(show_json))
         return result
 
     def get_top_matching_show(self, show):
         result = sorted(self.get_matching_shows(show), key=lambda item: item.score, reverse=True)
+        if result:
+            return result[0]
+
+
+class EpisodateClient(object):
+    SEARCH_BASE = "https://www.episodate.com/api/search?page=1&q="
+    DETAIL_BASE = "https://www.episodate.com/api/show-details?q="
+
+    def __init__(self):
+        pass
+
+    def get_show_info(self, show):
+        result = {}
+        r = requests.get(self.DETAIL_BASE + quote(show), verify=False)
+        if r.status_code == HTTPStatus.OK:
+            result = r.json()
+        return result
+
+    def get_matching_shows(self, show):
+        result = []
+        r = requests.get(self.SEARCH_BASE + quote(show), verify=False)
+        if r.status_code == HTTPStatus.OK:
+            for show_json in r.json().get('tv_shows'):
+                permalink = show_json.get('permalink', '')
+                if not permalink:
+                    continue
+                show_info = self.get_show_info(permalink)
+                if not show_info:
+                    continue
+                result.append(EpisodateShow(show_info))
+        return result
+
+
+    def get_top_matching_show(self, show):
+        '''
+        Episodate returns already sorted array
+        :param show:
+        :return:
+        '''
+        result = self.get_matching_shows(show)
         if result:
             return result[0]
 
@@ -285,16 +366,22 @@ class SlackNotification(object):
 
     def send_tv_show_message(self, show_name):
         match = re.match('(.+)\s+(S\d+E\d+)', show_name)
-        if len(match.groups()) >= 2:
+        if match is not None and len(match.groups()) >= 2:
             title = match.group(1)
             episode = match.group(2)
         else:
             title = show_name
             episode = ''
-        tvmazeClient = TVMazeClient()
-        show = tvmazeClient.get_top_matching_show(title)
+        # TODO: Merge show info
+        client = EpisodateClient()
+        show = client.get_top_matching_show(title)
         if not show:
             return
+        client = TVMazeClient()
+        show = client.get_top_matching_show(title)
+        if not show:
+            return
+        #
         payload={'username': 'TVShowInfo', 'icon_emoji': ':tv:',
                  'attachments': [
                      {'fallback':show.name + ' ' + episode,
@@ -305,8 +392,7 @@ class SlackNotification(object):
                       }
                  ]}
         reply = requests.post(self.WEBHOOK_URL, json.dumps(payload))
-        print (reply.status_code, reply.text)
-
+        print (reply.status_code == HTTPStatus.OK, reply.text)
 
 
 if __name__ == '__main__':
