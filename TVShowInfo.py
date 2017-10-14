@@ -1,6 +1,10 @@
 #!/usr/bin/env python3.6
 
 # std
+import argparse
+import json
+import re
+import sys
 
 # from std
 from urllib.parse import quote
@@ -38,6 +42,7 @@ class GenericShowImage(object):
             if result:
                 break
         return result
+
 
 class GenericShowNetworkCountry(object):
     @property
@@ -215,6 +220,7 @@ class TVMazeNetwork(GenericShowNetwork):
         self._country = TVMazeNetworkCountry(self.show_json.get('country'))
         return
 
+
 class TVMazeShow(GenericTVShow):
     def __init__(self, show_json=None):
         super(TVMazeShow, self).__init__()
@@ -243,10 +249,11 @@ class TVMazeShow(GenericTVShow):
         self._show_webChannel = self._show.get('webChannel')
         self._show_externals = self._show.get('externals')
         self._show_image = TVMazeImage(self._show.get('image'))
-        self._show_summary = self._show.get('summary')
+        self._show_summary = re.sub('<[^<]+?>', '', self._show.get('summary'))
         self._show_updated = self._show.get('updated')
         self._show_links = self._show.get('_links')
         return
+
 
 class TVMazeClient(object):
     SEARCH_BASE = "https://api.tvmaze.com/search/shows?q="
@@ -268,8 +275,47 @@ class TVMazeClient(object):
             return result[0]
 
 
+class SlackNotification(object):
+    WEBHOOK_URL = None
+    def __init__(self):
+        pass
+
+    def set_webhook_url(self, url):
+        self.WEBHOOK_URL = url
+
+    def send_tv_show_message(self, show_name):
+        match = re.match('(.+)\s+(S\d+E\d+)', show_name)
+        if len(match.groups()) >= 2:
+            title = match.group(1)
+            episode = match.group(2)
+        else:
+            title = show_name
+            episode = ''
+        tvmazeClient = TVMazeClient()
+        show = tvmazeClient.get_top_matching_show(title)
+        if not show:
+            return
+        payload={'username': 'TVShowInfo', 'icon_emoji': ':tv:',
+                 'attachments': [
+                     {'fallback':show.name + ' ' + episode,
+                      'color': '#36a64f',
+                      'pretext': show.name + ' ' + episode,
+                      'text': show.description,
+                      'image_url': show.image.first_available
+                      }
+                 ]}
+        reply = requests.post(self.WEBHOOK_URL, json.dumps(payload))
+        print (reply.status_code, reply.text)
+
+
+
 if __name__ == '__main__':
-    tvmazeClient = TVMazeClient()
-    show = tvmazeClient.get_top_matching_show("randomstring")
-    if show:
-        print (show.name, show.image.first_available, show.description)
+    parser = argparse.ArgumentParser(prog="TVShowInfo", description='Display TV Show info (and do some other stuff)')
+    parser.add_argument("-w", "--webhook", dest="slack", help="Send Slack notification regarding show specified")
+    parser.add_argument("-s", "--show", dest="show", help="TV Show name to process")
+    args = sys.argv[1:] if len(sys.argv) > 1 else ['-h']
+    parsed = parser.parse_args(args)
+    if parsed.slack is not None and parsed.show is not None:
+        slack = SlackNotification()
+        slack.set_webhook_url(parsed.slack)
+        slack.send_tv_show_message(parsed.show)
