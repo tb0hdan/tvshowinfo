@@ -358,6 +358,7 @@ class EpisodateClient(object):
 
 class SlackNotification(object):
     WEBHOOK_URL = None
+    SOURCES = [EpisodateClient, TVMazeClient]
     def __init__(self):
         pass
 
@@ -373,24 +374,27 @@ class SlackNotification(object):
             title = show_name
             episode = ''
         # TODO: Merge show info
-        client = EpisodateClient()
-        show = client.get_top_matching_show(title)
-        if not show:
-            return
-        client = TVMazeClient()
-        show = client.get_top_matching_show(title)
-        if not show:
-            return
-        #
-        payload={'username': 'TVShowInfo', 'icon_emoji': ':tv:',
+        show = None
+        for source in self.SOURCES:
+            client = source()
+            show = client.get_top_matching_show(title)
+            if show:
+                break
+        # TV Show found, go with formatted message with attachment
+        if show:
+            title_text = '{0!s} - {1!s} (original title: {2!s})'.format(show.name, episode, show_name)
+            payload = {'username': 'TVShowInfo', 'icon_emoji': ':tv:',
                  'attachments': [
-                     {'fallback':show.name + ' ' + episode,
+                     {'fallback': title_text,
                       'color': '#36a64f',
-                      'pretext': show.name + ' ' + episode,
+                      'pretext': title_text,
                       'text': show.description,
                       'image_url': show.image.first_available
                       }
                  ]}
+        # show not found, send minimal payload as is
+        else:
+            payload = {'username': 'TVShowInfo', 'icon_emoji': ':tv:', 'text': show_name}
         reply = requests.post(self.WEBHOOK_URL, json.dumps(payload))
         print (reply.status_code == HTTPStatus.OK, reply.text)
 
