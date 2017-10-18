@@ -395,13 +395,14 @@ class SlackNotification(object):
         # show not found, send minimal payload as is
         else:
             payload = {'username': 'TVShowInfo', 'icon_emoji': ':tv:', 'text': show_name}
-        reply = requests.post(self.WEBHOOK_URL, json.dumps(payload))
-        print (reply.status_code == HTTPStatus.OK, reply.text)
+        for real_url in self.WEBHOOK_URL.split(","):
+            reply = requests.post(real_url, json.dumps(payload))
+            print (reply.status_code == HTTPStatus.OK, reply.text)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog="TVShowInfo", description='Display TV Show info (and do some other stuff)')
-    parser.add_argument("-w", "--webhook", dest="slack", help="Send Slack notification regarding show specified")
+    parser.add_argument("-w", "--webhook", dest="slack", help="Slack incoming webhook. Use comma to provide more than one")
     parser.add_argument("-s", "--show", dest="show", help="TV Show name to process")
     args = sys.argv[1:] if len(sys.argv) > 1 else ['-h']
     parsed = parser.parse_args(args)
