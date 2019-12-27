@@ -24,21 +24,10 @@ class GenericShowImage(object):
     '''
     Generic TV Show image container clas
     '''
-    @property
-    def small(self):
-        return getattr(self, "_small_image", None)
-
-    @property
-    def medium(self):
-        return getattr(self, "_medium_image", None)
-
-    @property
-    def large(self):
-        return getattr(self, "_large_image", None)
-
-    @property
-    def original(self):
-        return getattr(self, "_original_image", None)
+    def __getattr__(self, attr):
+        if attr in ["small", "medium", "large", "original"]:
+            return getattr(self, "_%s_image" % attr, None)
+        raise AttributeError
 
     @property
     def first_available(self):
@@ -51,135 +40,35 @@ class GenericShowImage(object):
 
 
 class GenericShowNetworkCountry(object):
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def code(self):
-        return self._code
-
-    @property
-    def timezone(self):
-        return self._timezone
+    def __getattr__(self, attr):
+        if attr in ["name", "code", "timezone"]:
+            return getattr(self, "_%s" % attr, None)
+        raise AttributeError
 
 
 class GenericShowNetwork(object):
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def country(self):
-        return self._country
+    def __getattr__(self, attr):
+        if attr in ["id", "name", "country"]:
+            return getattr(self, "_%s" % attr, None)
+        raise AttributeError
 
 
 class GenericTVShow(object):
     '''
     Generic TV Show container class
     '''
-    @property
-    def score(self):
-        return getattr(self, "_score", 0)
-
-    @property
-    def show(self):
-        '''
-        show json
-        '''
-        return getattr(self, "_show", None)
-
-    @property
-    def id(self):
-        return getattr(self, "_show_id", None)
-
-    @property
-    def url(self):
-        return getattr(self, "_show_url", None)
-
-    @property
-    def name(self):
-        return getattr(self, "_show_name", None)
-
-    @property
-    def show_type(self):
-        return getattr(self, "_show_type", None)
-
-    @property
-    def language(self):
-        return getattr(self, "_show_language", None)
-
-    @property
-    def genres(self):
-        return getattr(self, "_show_genres", None)
-
-    @property
-    def status(self):
-        return getattr(self, "_show_status", None)
-
-    @property
-    def runtime(self):
-        return getattr(self, "_show_runtime", None)
-
-    @property
-    def premiered(self):
-        return getattr(self, "_show_premiered", None)
-
-    @property
-    def officialSite(self):
-        return getattr(self, "_show_officialSite", None)
-
-    @property
-    def schedule(self):
-        return getattr(self, "_show_schedule", None)
-
-    @property
-    def rating(self):
-        return getattr(self, "_show_rating", None)
-
-    @property
-    def weight(self):
-        return getattr(self, "_show_weight", None)
-
-    @property
-    def network(self):
-        return getattr(self, "_show_network", None)
-
-    @property
-    def webChannel(self):
-        return getattr(self, "_show_webChannel", None)
-
-    @property
-    def externals(self):
-        return getattr(self, "_show_externals", None)
-
-    @property
-    def image(self):
-        return getattr(self, "_show_image", None)
-
-    @property
-    def summary(self):
-        return getattr(self, "_show_summary", None)
-
-    @property
-    def description(self):
-        '''
-        alias for summary
-        :return:
-        '''
-        return self.summary
-
-    @property
-    def updated(self):
-        return getattr(self, "_show_updated", None)
-
-    @property
-    def links(self):
-        return getattr(self, "_show_links", None)
+    def __getattr__(self, attr):
+        if attr == "description":
+            return getattr(self, "summary", None)
+        if attr in ["score", "show", "show_type"]:
+            return getattr(self, "_%s" % attr, None)
+        if attr in ["id", "url", "name", "language", "genres", "status",
+                    "runtime", "premiered", "officialSite",
+                    "schedule", "rating", "weight", "network",
+                    "webChannel", "externals", "image", "summary",
+                    "updated", "links"]:
+            return getattr(self, "_show_%s" % attr, None)
+        raise AttributeError
 
 
 class EpisodateImage(GenericShowImage):
