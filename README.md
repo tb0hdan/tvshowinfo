@@ -13,7 +13,7 @@ https://www.tvmaze.com/
 Requires Slack incoming webhook URL: https://api.slack.com/incoming-webhooks
 
 
-`./TVShowInfo.py -s 'Top Gear' -w https://api.slack.com/aaa/bbb/`
+`./TVShowInfo.py -s 'Top Gear S01E01' -w https://api.slack.com/aaa/bbb/`
 
 
 ## Potential sources
