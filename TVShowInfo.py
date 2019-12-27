@@ -20,7 +20,18 @@ import requests
 # global changes
 urllib3.disable_warnings()
 
-class GenericShowImage(object):
+class SetFromJSON(object):
+    def setFromJSON(self, attr, key, dct):
+        setattr(self, attr, dct.get(key))
+
+    def setFromPairs(self, pairs, dct):
+        for pair in pairs:
+            key = [x for x in pair.keys()][0]
+            value = pair[key]
+            self.setFromJSON(key, value, dct)
+
+
+class GenericSetFromImage(SetFromJSON):
     '''
     Generic TV Show image container clas
     '''
@@ -39,21 +50,21 @@ class GenericShowImage(object):
         return result
 
 
-class GenericShowNetworkCountry(object):
+class GenericSetFromNetworkCountry(SetFromJSON):
     def __getattr__(self, attr):
         if attr in ["name", "code", "timezone"]:
             return getattr(self, "_%s" % attr, None)
         raise AttributeError
 
 
-class GenericShowNetwork(object):
+class GenericSetFromNetwork(SetFromJSON):
     def __getattr__(self, attr):
         if attr in ["id", "name", "country"]:
             return getattr(self, "_%s" % attr, None)
         raise AttributeError
 
 
-class GenericTVShow(object):
+class GenericTVSetFrom(SetFromJSON):
     '''
     Generic TV Show container class
     '''
@@ -71,7 +82,7 @@ class GenericTVShow(object):
         raise AttributeError
 
 
-class EpisodateImage(GenericShowImage):
+class EpisodateImage(GenericSetFromImage):
     def __init__(self, show_json=None):
         super(EpisodateImage, self).__init__()
         self.show_json = show_json if show_json else {}
@@ -80,11 +91,12 @@ class EpisodateImage(GenericShowImage):
     def parse(self):
         if not self.show_json:
             return
-        self._small_image = self.show_json.get('image_thumbnail_path')
-        self._medium_image = self.show_json.get('image_path')
+        pairs = [{'_small_image': 'image_thumbnail_path'},
+                 {'_medium_image': 'image_path'}]
+        self.setFromPairs(pairs, self.show_json)
 
 
-class TVMazeImage(GenericShowImage):
+class TVMazeImage(GenericSetFromImage):
     def __init__(self, show_json=None):
         super(TVMazeImage, self).__init__()
         self.show_json = show_json if show_json else {}
@@ -93,14 +105,12 @@ class TVMazeImage(GenericShowImage):
     def parse(self):
         if not self.show_json:
             return
-        self._small_image = self.show_json.get('small')
-        self._medium_image = self.show_json.get('medium')
-        self._large_image = self.show_json.get('large')
-        self._original_image = self.show_json.get('original')
-        return
+        pairs = [{'_small_image': 'small'}, {'_medium_image': 'medium'},
+                 {'_large_image': 'large'}, {'_original_image': 'original'}]
+        self.setFromPairs(pairs, self.show_json)
 
 
-class TVMazeNetworkCountry(GenericShowNetworkCountry):
+class TVMazeNetworkCountry(GenericSetFromNetworkCountry):
     def __init__(self, show_json=None):
         super(TVMazeNetworkCountry, self).__init__()
         self.show_json = show_json if show_json else {}
@@ -109,12 +119,13 @@ class TVMazeNetworkCountry(GenericShowNetworkCountry):
     def parse(self):
         if not self.show_json:
             return
-        self._name = self.show_json.get('name')
-        self._code = self.show_json.get('code')
-        self._timezone = self.show_json.get('timezone')
+        pairs = [{'_name': 'name'},
+                 { '_code': 'code'},
+                 {'_timezone': 'timezone'}]
+        self.setFromPairs(pairs)
 
 
-class TVMazeNetwork(GenericShowNetwork):
+class TVMazeNetwork(GenericSetFromNetwork):
     def __init__(self, show_json=None):
         super(TVMazeNetwork, self).__init__()
         self.show_json = show_json if show_json else {}
@@ -123,13 +134,13 @@ class TVMazeNetwork(GenericShowNetwork):
     def parse(self):
         if not self.show_json:
             return
-        self._id = self.show_json.get('id')
-        self._name = self.show_json.get('name')
+        pairs = [{'_id': 'id'},
+                 {'_name': 'name'}]
+        self.setFromPairs(pairs, self.show_json)
         self._country = TVMazeNetworkCountry(self.show_json.get('country'))
-        return
 
 
-class TVMazeShow(GenericTVShow):
+class TVMazeShow(GenericTVSetFrom):
     def __init__(self, show_json=None):
         super(TVMazeShow, self).__init__()
         self.show_json = show_json if show_json else {}
@@ -138,32 +149,35 @@ class TVMazeShow(GenericTVShow):
     def parse(self):
         if not self.show_json:
             return
-        self._score = self.show_json.get('score')
-        self._show = self.show_json.get('show', {})
-        self._show_id = self._show.get('id')
-        self._show_url = self._show.get('url')
-        self._show_name = self._show.get('name')
-        self._show_type = self._show.get('type')
-        self._show_language = self._show.get('language')
-        self._show_genres = self._show.get('genres', [])
-        self._show_status = self._show.get('status')
-        self._show_runtime = self._show.get('runtime')
-        self._show_premiered = self._show.get('premiered')
-        self._show_officialSite = self._show.get('officialSite')
-        self._show_schedule = self._show.get('schedule')
-        self._show_rating = self._show.get('rating')
-        self._show_weight = self._show.get('weight')
+        pairs = [{'_score': 'score'},
+                 {'_show': 'show'}]
+        self.setFromPairs(pairs, self.show_json)
+
+        pairs = [{'_show_id': 'id'},
+                 {'_show_url': 'url'},
+                 {'_show_name': 'name'},
+                 {'_show_type': 'type'},
+                 {'_show_language': 'language'},
+                 {'_show_genres': 'genres'},
+                 {'_show_status': 'status'},
+                 {'_show_runtime': 'runtime'},
+                 {'_show_premiered': 'premiered'},
+                 {'_show_officialSite': 'officialSite'},
+                 {'_show_schedule': 'schedule'},
+                 {'_show_rating': 'rating'},
+                 {'_show_weight': 'weight'},
+                 {'_show_webChannel': 'webChannel'},
+                 {'_show_externals': 'externals'},
+                 {'_show_updated': 'updated'},
+                 {'_show_links': '_links'}
+                 ]
+        self.setFromPairs(pairs, self._show)
         self._show_network = TVMazeNetwork(self._show.get('network'))
-        self._show_webChannel = self._show.get('webChannel')
-        self._show_externals = self._show.get('externals')
         self._show_image = TVMazeImage(self._show.get('image'))
         self._show_summary = re.sub('<[^<]+?>', '', self._show.get('summary'))
-        self._show_updated = self._show.get('updated')
-        self._show_links = self._show.get('_links')
-        return
 
 
-class EpisodateShow(GenericTVShow):
+class EpisodateShow(GenericTVSetFrom):
     def __init__(self, show_json=None):
         super(EpisodateShow, self).__init__()
         self.show_json = show_json if show_json else {}
@@ -175,13 +189,14 @@ class EpisodateShow(GenericTVShow):
         tv_show = self.show_json.get('tvShow', {})
         if not tv_show:
             return
-        self._show_id = tv_show.get('id')
-        self._show_url = tv_show.get('url')
-        self._show_name = tv_show.get('name')
+        pairs =[{'_show_id': 'id'},
+                {'_show_url': 'url'},
+                {'_show_name': 'name'},
+                {'_show_status': 'status'},
+                {'_show_genres': 'genres'},
+                {'_show_runtime': 'runtime'}]
+        self.setFromPairs(pairs, tv_show)
         self._show_summary = re.sub('<[^<]+?>', '', tv_show.get('description'))
-        self._show_status = tv_show.get('status')
-        self._show_genres = tv_show.get('genres', [])
-        self._show_runtime = tv_show.get('runtime')
         self._show_image = EpisodateImage(tv_show)
 
 
